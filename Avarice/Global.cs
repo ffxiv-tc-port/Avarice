@@ -11,6 +11,7 @@ global using Dalamud.Interface;
 global using Dalamud.Interface.Colors;
 global using Dalamud.Interface.Windowing;
 global using ECommons.Logging;
+global using ECommons.LanguageHelpers;
 global using ECommons;
 global using static ECommons.GenericHelpers;
 global using static Avarice.Avarice;

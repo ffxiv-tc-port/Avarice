@@ -6,16 +6,16 @@ internal static class TabProfiles
 {
     internal static void Draw()
     {
-        ImGuiEx.Text("Current profile:");
+        ImGuiEx.Text("Current profile:".Loc());
         ImGui.SameLine();
         ImGuiEx.InputWithRightButtonsArea("CurrentProfiles", delegate
         {
-            if (ImGui.BeginCombo("##prof", P.currentProfile.Name.Default("<unnamed>")))
+            if (ImGui.BeginCombo("##prof", P.currentProfile.Name.Default("<unnamed>".Loc())))
             {
                 for (var i = 0; i < P.config.Profiles.Count; i++)
                 {
                     var profile = P.config.Profiles[i];
-                    if (ImGui.Selectable($"#{i + 1} - {profile.Name.Default("<unnamed>")}", profile == P.currentProfile))
+                    if (ImGui.Selectable($"#{i + 1} - {profile.Name.Default("<unnamed>".Loc())}", profile == P.currentProfile))
                     {
                         P.currentProfile = profile;
                     }
@@ -24,11 +24,11 @@ internal static class TabProfiles
             }
         }, delegate
         {
-            if (ImGui.Button("Delete"))
+            if (ImGui.Button("Delete".Loc()))
             {
                 if (P.config.Profiles.Count == 1)
                 {
-                    Notify.Error("Last profile can not be removed");
+                    Notify.Error("Last profile can not be removed".Loc());
                 }
                 else
                 {
@@ -37,7 +37,7 @@ internal static class TabProfiles
                 }
             }
             ImGui.SameLine();
-            if (ImGui.Button("Add"))
+            if (ImGui.Button("Add".Loc()))
             {
                 var prof = new Profile();
                 P.config.Profiles.Add(prof);
@@ -49,11 +49,11 @@ internal static class TabProfiles
         {
             if (P.currentProfile.IsDefault)
             {
-                ImGuiEx.Text("This is default profile.");
+                ImGuiEx.Text("This is default profile.".Loc());
             }
             else
             {
-                if (ImGui.SmallButton("Make this profile default"))
+                if (ImGui.SmallButton("Make this profile default".Loc()))
                 {
                     foreach (var x in P.config.Profiles)
                     {
@@ -64,7 +64,7 @@ internal static class TabProfiles
             }
         });
         ImGuiEx.SetNextItemFullWidth();
-        ImGui.InputTextWithHint("##namep", "Profile name...", ref P.currentProfile.Name, 100);
+        ImGui.InputTextWithHint("##namep", "Profile name...".Loc(), ref P.currentProfile.Name, 100);
 
         ImGuiHelpers.ScaledDummy(5f);
         BoxJob.DrawStretched();
@@ -74,7 +74,7 @@ internal static class TabProfiles
 
     static InfoBox BoxJob = new()
     {
-        Label = "Assign profiles to jobs",
+        Label = "Assign profiles to jobs".Loc(),
         ContentsAction = delegate
         {
             foreach (var x in Svc.Data.GetExcelSheet<ClassJob>().Where(x => x.JobIndex > 0))
@@ -82,9 +82,9 @@ internal static class TabProfiles
                 ImGuiEx.Text($"{x.NameEnglish}:");
                 ImGui.SameLine(100f.Scale());
                 ImGuiEx.SetNextItemFullWidth(-15);
-                if (ImGui.BeginCombo($"##sel{x.RowId}", P.GetProfileForJob(x.RowId)?.Name ?? "<unassigned>"))
+                if (ImGui.BeginCombo($"##sel{x.RowId}", P.GetProfileForJob(x.RowId)?.Name ?? "<unassigned>".Loc()))
                 {
-                    if (ImGui.Selectable("Unassign"))
+                    if (ImGui.Selectable("Unassign".Loc()))
                     {
                         P.config.JobProfiles.Remove(x.RowId);
                     }

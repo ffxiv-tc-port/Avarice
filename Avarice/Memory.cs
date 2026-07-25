@@ -40,13 +40,13 @@ namespace Avarice
                     }
                     if (positionalState == PositionalState.Success)
                     {
-                        if (P.currentProfile?.EnableChatMessagesSuccess == true) Svc.Chat?.Print("Positional HIT!");
+                        if (P.currentProfile?.EnableChatMessagesSuccess == true) Svc.Chat?.Print("Positional HIT!".Loc());
                         if (P.currentProfile?.EnableVFXSuccess == true) VfxEditorManager.DisplayVfx(true);
                         P.RecordStat(false);
                     }
                     else if (positionalState == PositionalState.Failure)
                     {
-                        if (P.currentProfile?.EnableChatMessagesFailure == true) Svc.Chat?.Print("Positional MISS!");
+                        if (P.currentProfile?.EnableChatMessagesFailure == true) Svc.Chat?.Print("Positional MISS!".Loc());
                         if (P.currentProfile?.EnableVFXFailure == true) VfxEditorManager.DisplayVfx(false);
                         P.RecordStat(true);
                     }
