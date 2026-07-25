@@ -43,6 +43,7 @@ public unsafe class Avarice : IDalamudPlugin
     {
         P = this;
         ECommonsMain.Init(pi, this, Module.DalamudReflector, Module.ObjectFunctions);
+        ECommons.LanguageHelpers.Localization.Init("ChineseTraditional");
         PunishLibMain.Init(pi, Svc.PluginInterface.InternalName, PunishOption.DefaultKoFi);
         _ = new TickScheduler(delegate
         {
@@ -74,14 +75,14 @@ public unsafe class Avarice : IDalamudPlugin
                 else if (args == "draw") // Added new command for toggling drawing
                 {
                     P.currentProfile.DrawingEnabled = !P.currentProfile.DrawingEnabled;
-                    Svc.Chat.Print($"Drawing {(P.currentProfile.DrawingEnabled ? "enabled" : "disabled")}");
+                    Svc.Chat.Print("Drawing ??".Loc(P.currentProfile.DrawingEnabled ? "enabled".Loc() : "disabled".Loc()));
                 }
                 else
                 {
                     configWindow.IsOpen = !configWindow.IsOpen;
                 }
             })
-            { HelpMessage = "Toggle configuration window. Use '/avarice draw' to toggle drawing, '/avarice debug' for debug mode." });
+            { HelpMessage = "Toggle configuration window. Use '/avarice draw' to toggle drawing, '/avarice debug' for debug mode.".Loc() });
             //LoadOpcode.Start();
             LuminaSheets.Init();
             Svc.PluginInterface.GetIpcProvider<IntPtr, CardinalDirection>("Avarice.CardinalDirection").RegisterFunc(GetCardinalDirectionForObject);
@@ -133,7 +134,7 @@ public unsafe class Avarice : IDalamudPlugin
                         var total = currentProfile.CurrentEncounterStats.Hits + currentProfile.CurrentEncounterStats.Missed;
                         var success = (int)(100f * currentProfile.CurrentEncounterStats.Hits / total);
                         Svc.Chat.Print(new SeStringBuilder()
-                    .AddText($"Positionals summary for encounter: {currentProfile.CurrentEncounterStats.Hits}/{total} - ")
+                    .AddText("Positionals summary for encounter: ??/?? - ".Loc(currentProfile.CurrentEncounterStats.Hits, total))
                     .AddUiForeground($"{success}%", ECommons.GenericHelpers.GetParsedSeSetingColor(success))
                     .Build());
                     }
