@@ -1,7 +1,9 @@
 ﻿using Avarice.Structs;
+using Dalamud.Hooking;
 using ECommons.Hooks;
 using ECommons.Hooks.ActionEffectTypes;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Character = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
 namespace Avarice
 {
@@ -9,10 +11,35 @@ namespace Avarice
     {
         internal uint LastComboMove => ActionManager.Instance()->Combo.Action;
 
+        //TC 7.20:ECommons 的 ActionEffect 模組內建簽名過新,在 TC 客戶端掃描失敗,其事件永遠不會觸發。
+        //改在插件端以 TC 驗證過的簽名(ActionWatching.ActionEffectSig)自行掛鉤,沿用原本的 ActionEffectSet 處理邏輯。
+        private readonly Hook<ActionEffect.ProcessActionEffect> receiveActionEffectHook;
+
         internal Memory()
         {
             SignatureHelper.Initialise(this);
-            ActionEffect.ActionEffectEvent += ReceiveActionEffectDetour;
+            try
+            {
+                receiveActionEffectHook = Svc.Hook.HookFromSignature<ActionEffect.ProcessActionEffect>(Data.ActionWatching.ActionEffectSig, ProcessActionEffectDetour);
+                receiveActionEffectHook.Enable();
+            }
+            catch (Exception e)
+            {
+                PluginLog.Error($"Could not find ActionEffect signature: {e.Message}");
+            }
+        }
+
+        private void ProcessActionEffectDetour(uint sourceId, Character* sourceCharacter, Vector3* pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
+        {
+            try
+            {
+                ReceiveActionEffectDetour(new ActionEffectSet(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail));
+            }
+            catch (Exception e)
+            {
+                e.Log();
+            }
+            receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         }
 
         void ReceiveActionEffectDetour(ActionEffectSet set)
@@ -61,6 +88,7 @@ namespace Avarice
 
         public void Dispose()
         {
+            receiveActionEffectHook?.Dispose();
         }
     }
 }

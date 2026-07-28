@@ -30,6 +30,10 @@ namespace Avarice.Data
 
 		internal static readonly List<uint> CombatActions = [];
 
+		//TC 7.20 (2026.07.22.0000.0000):ECommons 內建的 ActionEffect.Sig 已更新為較新的國際服客戶端,在 TC 客戶端掃描為 0 命中。
+		//此簽名經離線掃描 TC 客戶端驗證為唯一命中,並與 FFXIVClientStructs ActionEffectHandler.Receive 呼叫點交叉驗證指向同一函式。
+		internal const string ActionEffectSig = "40 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24";
+
 		private static readonly Hook<ActionEffect.ProcessActionEffect> ReceiveActionEffectHook;
 
 		private static void ReceiveActionEffectDetour(uint sourceId, Character* sourceCharacter, Vector3* pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
@@ -204,7 +208,7 @@ namespace Avarice.Data
 
 		static unsafe ActionWatching()
 		{
-      ReceiveActionEffectHook ??= Svc.Hook.HookFromSignature<ActionEffect.ProcessActionEffect>(ActionEffect.Sig, ReceiveActionEffectDetour);
+      ReceiveActionEffectHook ??= Svc.Hook.HookFromSignature<ActionEffect.ProcessActionEffect>(ActionEffectSig, ReceiveActionEffectDetour);
 			SendActionHook ??= Svc.Hook.HookFromSignature<SendActionDelegate>("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 48 8B E9 41 0F B7 D9", SendActionDetour);
 		}
 
