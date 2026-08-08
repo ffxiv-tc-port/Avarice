@@ -39,7 +39,7 @@ namespace Avarice
             {
                 e.Log();
             }
-            receiveActionEffectHook.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
+            receiveActionEffectHook.OriginalDisposeSafe(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
         }
 
         void ReceiveActionEffectDetour(ActionEffectSet set)

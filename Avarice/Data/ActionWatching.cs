@@ -43,7 +43,7 @@ namespace Avarice.Data
 				CombatActions.Clear();
 			}
 
-			ReceiveActionEffectHook!.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
+			ReceiveActionEffectHook!.OriginalDisposeSafe(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
 			ActionEffectHeader header = Marshal.PtrToStructure<ActionEffectHeader>((nint)effectHeader);
 
 			if (ActionType is 13 or 2)
@@ -90,7 +90,7 @@ namespace Avarice.Data
 		{
 			try
 			{
-				SendActionHook!.Original(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
+				SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 				TimeLastActionUsed = DateTime.Now;
 				ActionType = actionType;
 
@@ -99,7 +99,7 @@ namespace Avarice.Data
 			catch (Exception ex)
 			{
 				Svc.Log.Error(ex, "SendActionDetour");
-				SendActionHook!.Original(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
+				SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 			}
 		}
 
