@@ -53,7 +53,7 @@ namespace Avarice.Data
 
 			if (header.ActionId != 7 &&
 				header.ActionId != 8 &&
-        sourceId == Svc.ClientState.LocalPlayer.EntityId)
+        sourceId == Svc.Objects.LocalPlayer.EntityId)
 			{
 				TimeLastActionUsed = DateTime.Now;
 				LastActionUseCount++;
