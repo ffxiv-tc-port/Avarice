@@ -1,6 +1,9 @@
-﻿namespace Avarice.Positional;
+﻿using System;
+using System.Linq;
 
-public class PositionalManager
+namespace Avarice.Positional;
+
+public class PositionalManager : IDisposable
 {
 	// 方位倍率表已內嵌於組件中(Avarice/StaticData/PositionalPotencies.cs)。
 	//
@@ -11,9 +14,26 @@ public class PositionalManager
 	// 內嵌之後不再有任何網路或磁碟相依,建構完成即可用。
 	private readonly Dictionary<int, PositionalAction> _actionStore = new();
 
+	// 方位表校準診斷:記下已回報過的 (技能, 實測 percent) 組合,同一組合每次登入只印一次。
+	// 只在 framework thread(Memory.cs 的 action-effect hook)上存取,因此不需要鎖。
+	// 刻意不持久化 —— 這是用來補表的取樣資料,不是設定。
+	private readonly HashSet<(int ActionId, int Percent)> _reportedCalibrationMisses = [];
+
 	public PositionalManager()
 	{
 		Load();
+		Svc.ClientState.Login += OnLogin;
+	}
+
+	public void Dispose()
+	{
+		Svc.ClientState.Login -= OnLogin;
+	}
+
+	private void OnLogin()
+	{
+		// 每次登入重新開始取樣,否則長時間掛著的 session 回報過一次之後就再也不會回報。
+		_reportedCalibrationMisses.Clear();
 	}
 
 	/// <summary>
@@ -60,15 +80,34 @@ public class PositionalManager
 	{
 		if (!_actionStore.TryGetValue(actionId, out PositionalAction action))
 		{
+			// 技能根本不在表裡 —— 呼叫端(Memory.cs)已經先用 IsPositional() 擋過,
+			// 正常不會走到這裡;真走到了也不是校準訊號,不回報。
 			return false;
 		}
 
 		if (!action.Positionals.TryGetValue(percent, out PositionalParameters parameters))
 		{
+			// 技能在表裡、但實測到的 percent 不在表內 —— 這正是「表列不全」的校準訊號。
+			ReportCalibrationMiss(action, percent);
 			return false;
 		}
 
 		return parameters.IsHit;
+	}
+
+	/// <summary>
+	/// 回報一筆「表內有這個技能、但沒有這個 percent」的取樣。
+	/// 同一個 (技能, percent) 組合每次登入只印一次,避免連續戰鬥洗版。
+	/// </summary>
+	private void ReportCalibrationMiss(PositionalAction action, int percent)
+	{
+		if (!_reportedCalibrationMisses.Add((action.Id, percent)))
+		{
+			return;
+		}
+
+		string known = string.Join(",", action.Positionals.Keys.OrderBy(x => x));
+		PluginLog.Information($"[方位表校準] action={action.Id} ({action.ActionName}) 實測percent={percent} 表內=[{known}]");
 	}
 
 	public PositionalParameters GetPositionalParameters(int actionId, int percent)

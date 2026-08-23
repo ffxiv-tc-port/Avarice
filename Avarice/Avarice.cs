@@ -214,6 +214,9 @@ public unsafe class Avarice : IDalamudPlugin
         {
             Svc.PluginInterface.GetIpcProvider<IntPtr, CardinalDirection>("Avarice.CardinalDirection").UnregisterFunc();
         });
+        // PositionalManager 在 TickScheduler 裡才建立,Dispose 可能早於它 → 一律 ?. 並包 Safe。
+        // 它訂閱了 Svc.ClientState.Login(方位表校準診斷的節流重置),不解訂閱會留下懸空處理常式。
+        Safe(() => PositionalManager?.Dispose());
         memory.Dispose();
         ActionWatching.Dispose();
         ComboCache.ComboCacheInstance.Dispose();
