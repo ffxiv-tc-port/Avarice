@@ -1,132 +1,59 @@
-﻿using CsvHelper;
-using System.Globalization;
-using System.IO;
-using System.Net.Http;
-
-namespace Avarice.Positional;
+﻿namespace Avarice.Positional;
 
 public class PositionalManager
 {
-	private const string SheetUrl = "https://docs.google.com/spreadsheets/d/1z2skn_jokyj02Qv2GPEs6HSmAZVLiw2LbwQxkXPjiEs/gviz/tq?tqx=out:csv&sheet=main1";
-	private readonly string _filePath = Path.Combine(Svc.PluginInterface.AssemblyLocation.DirectoryName!, "positionals.csv");
-
-	private readonly HttpClient _client;
-
-	// 只在 framework thread 上整份換掉;讀取端(Memory.cs 的 action-effect hook)也在主執行緒,
-	// 因此不需要鎖,但絕對不可以從背景執行緒直接改動這個字典的內容。
-	private Dictionary<int, PositionalAction> _actionStore;
+	// 方位倍率表已內嵌於組件中(Avarice/StaticData/PositionalPotencies.cs)。
+	//
+	// 舊版是啟動時去 Google 試算表抓 CSV,再把結果快取到 Svc.PluginInterface.AssemblyLocation
+	// 底下。那個目錄帶版號(installedPlugins/Avarice/<版號>/positionals.csv),所以每次外掛更新
+	// 快取就跟著消失;一旦當下又連不上試算表,_actionStore 就是空的,IsPositional() 恆為 false,
+	// 全部方位回饋都會靜默停用 —— 而且只留下一行 Warning,使用者端看起來就只是「功能不見了」。
+	// 內嵌之後不再有任何網路或磁碟相依,建構完成即可用。
+	private readonly Dictionary<int, PositionalAction> _actionStore = new();
 
 	public PositionalManager()
 	{
-		// 不設 Timeout 會吃 .NET 預設的 100 秒;整段抓取原本又是同步等在主執行緒上,
-		// 一旦 Google 試算表連不上,遊戲就整個卡住到逾時為止。
-		_client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-		_actionStore = [];
-		Refresh();
-	}
-
-	public void Reset()
-	{
-		Refresh();
+		Load();
 	}
 
 	/// <summary>
-	/// 在背景抓取並解析連擊資料表,完成後才回到 framework thread 發布結果。
-	/// 呼叫端不會被阻塞。
+	/// 重新載入內嵌方位資料。
+	/// ⚠️ 讀取端(Memory.cs 的 action-effect hook)在 framework thread 上讀這個字典,
+	/// 因此只能從 framework thread 呼叫,否則會與讀取端競爭。
 	/// </summary>
-	private void Refresh()
+	public void Reset()
 	{
-		_ = Task.Run(async () =>
-		{
-			try
-			{
-				Dictionary<int, PositionalAction> store = await GetAsync().ConfigureAwait(false);
-				if (store == null)
-				{
-					return;
-				}
-
-				await Svc.Framework.RunOnFrameworkThread(() => _actionStore = store).ConfigureAwait(false);
-				PluginLog.Debug($"Loaded {store.Count} positional actions");
-			}
-			catch (Exception e)
-			{
-				e.Log();
-			}
-		});
+		Load();
 	}
 
-	private async Task<Dictionary<int, PositionalAction>> GetAsync()
+	private void Load()
 	{
-		string text = null;
-		try
-		{
-			text = await _client.GetStringAsync(SheetUrl).ConfigureAwait(false);
-		}
-		catch (Exception e)
-		{
-			PluginLog.Warning($"Failed to download positional data, falling back to local cache: {e.Message}");
-		}
+		_actionStore.Clear();
 
-		if (text != null)
+		foreach (StaticData.PositionalPotencies.Row row in StaticData.PositionalPotencies.Records)
 		{
-			try
-			{
-				if (!File.Exists(_filePath) || File.ReadAllText(_filePath) != text)
-				{
-					File.WriteAllText(_filePath, text);
-				}
-			}
-			catch (Exception e)
-			{
-				e.Log();
-			}
-		}
-		else
-		{
-			// 抓不到就吃本機快取;連快取都沒有就只能放棄,保留目前(空的)資料。
-			if (!File.Exists(_filePath))
-			{
-				PluginLog.Warning("No cached positional data available");
-				return null;
-			}
-
-			text = File.ReadAllText(_filePath);
-		}
-
-		return Load(text);
-	}
-
-	private static Dictionary<int, PositionalAction> Load(string text)
-	{
-		Dictionary<int, PositionalAction> actionStore = [];
-		using StringReader reader = new(text);
-		using CsvReader csv = new(reader, CultureInfo.InvariantCulture);
-
-		foreach (PositionalRecord record in csv.GetRecords<PositionalRecord>())
-		{
-			if (!actionStore.TryGetValue(record.Id, out PositionalAction action))
+			if (!_actionStore.TryGetValue(row.Id, out PositionalAction action))
 			{
 				action = new PositionalAction
 				{
-					Id = record.Id,
-					ActionName = record.ActionName,
-					ActionPosition = record.ActionPosition,
+					Id = row.Id,
+					ActionName = row.Name,
+					ActionPosition = row.Position,
 					Positionals = [],
 				};
-				actionStore.Add(record.Id, action);
+				_actionStore.Add(row.Id, action);
 			}
 
-			PositionalParameters parameters = new()
+			action.Positionals[row.Percent] = new PositionalParameters
 			{
-				Percent = record.Percent,
-				IsHit = record.IsHit == "TRUE",
-				Comment = record.Comment,
+				Percent = row.Percent,
+				IsHit = row.IsHit,
+				Comment = row.Comment,
 			};
-			action.Positionals.Add(record.Percent, parameters);
 		}
 
-		return actionStore;
+		// 用 Information:使用者跑 LogLevel 2,這行是判斷「方位表到底有沒有載進來」的唯一依據。
+		PluginLog.Information($"Loaded {_actionStore.Count} positional actions ({StaticData.PositionalPotencies.Records.Length} rows) from embedded table");
 	}
 
 	public bool IsPositionalHit(int actionId, int percent)
