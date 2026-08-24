@@ -42,16 +42,16 @@ internal unsafe partial class ConfigWindow : Window
             ImGuiEx.Text(P.StaticAutoDetectRadiusData.Select(x => x.ToString()).Join("\n"));
         }
         {
-            if(ImGui.Button("vfx yes"))
+            if(ImGui.Button("vfx yes".Loc()))
             {
                 VfxEditorManager.DisplayVfx(true);
             }
-            if(ImGui.Button("vfx no"))
+            if(ImGui.Button("vfx no".Loc()))
             {
                 VfxEditorManager.DisplayVfx(false);
             }
-            ImGui.InputInt("Action override test", ref ActionOverride);
-            if(ImGui.Button("set action override"))
+            ImGui.InputInt("Action override test".Loc(), ref ActionOverride);
+            if(ImGui.Button("set action override".Loc()))
             {
                 Svc.PluginInterface.GetOrCreateData("Avarice.ActionOverride", () => new List<uint>() { 0 })[0] = (uint)ActionOverride;
             }
@@ -68,7 +68,7 @@ internal unsafe partial class ConfigWindow : Window
             ImGuiEx.Text(ImGuiColors.DalamudRed, FontAwesomeIcon.Heart.ToIconString());
             ImGui.PopFont();
             ImGuiEx.Text($"Is target positional: {Svc.Targets.Target?.HasPositional()}");
-            if(ImGui.Button("Test IPC"))
+            if(ImGui.Button("Test IPC".Loc()))
             {
                 Safe(TestIPC);
             }
