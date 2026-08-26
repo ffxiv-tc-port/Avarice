@@ -14,7 +14,7 @@ namespace Avarice.ConfigurationWindow.Player
 		{
 				internal static void Draw()
 				{
-						ImGuiGroup.BeginGroupBox("Tactical Compass");
+						ImGuiGroup.BeginGroupBox("Tactical Compass".Loc());
 						DrawInternal();
 						ImGuiGroup.EndGroupBox();
 				}
@@ -23,7 +23,7 @@ namespace Avarice.ConfigurationWindow.Player
 				{
 						ImGui.PushID("compass");
 						ImGui.SetNextItemWidth(SelectWidth);
-            ImGui.Checkbox("Tactical Compass", ref P.currentProfile.CompassEnable);
+            ImGui.Checkbox("Tactical Compass".Loc(), ref P.currentProfile.CompassEnable);
 						//if (P.currentProfile.CompassEnable)
 						{
 								ImGui.SameLine();
@@ -33,27 +33,27 @@ namespace Avarice.ConfigurationWindow.Player
 								ImGuiEx.InvisibleButton(3);
 								ImGui.SameLine();
 								ImGui.SetNextItemWidth(150f);
-								ImGuiEx.EnumCombo("Game font family and size", ref Prof.CompassFont);
+								ImGuiEx.EnumCombo("Game font family and size".Loc(), ref Prof.CompassFont);
 
 								ImGuiEx.InvisibleButton(3);
 								ImGui.SameLine();
 								ImGui.SetNextItemWidth(150f);
-								ImGui.SliderFloat("Font Scale", ref Prof.CompassFontScale.ValidateRange(0, 100f), 0.5f, 20f);
+								ImGui.SliderFloat("Font Scale".Loc(), ref Prof.CompassFontScale.ValidateRange(0, 100f), 0.5f, 20f);
 
 								ImGuiEx.InvisibleButton(3);
 								ImGui.SameLine();
 								ImGui.SetNextItemWidth(150f);
-								ImGui.SliderFloat("Distance Offset", ref Prof.CompassDistance.ValidateRange(0, float.MaxValue), 0.01f, 20f);
+								ImGui.SliderFloat("Distance Offset".Loc(), ref Prof.CompassDistance.ValidateRange(0, float.MaxValue), 0.01f, 20f);
 
 								ImGuiEx.InvisibleButton(3);
 								ImGui.SameLine();
 								ImGui.SetNextItemWidth(150f);
-								ImGui.ColorEdit4("North Color", ref Prof.CompassColorN, ImGuiColorEditFlags.NoInputs);
+								ImGui.ColorEdit4("North Color".Loc(), ref Prof.CompassColorN, ImGuiColorEditFlags.NoInputs);
 
 								ImGuiEx.InvisibleButton(3);
 								ImGui.SameLine();
 								ImGui.SetNextItemWidth(150f);
-								ImGui.ColorEdit4("Other Colors", ref Prof.CompassColor, ImGuiColorEditFlags.NoInputs);
+								ImGui.ColorEdit4("Other Colors".Loc(), ref Prof.CompassColor, ImGuiColorEditFlags.NoInputs);
 						}
 						ImGui.PopID();
 				}

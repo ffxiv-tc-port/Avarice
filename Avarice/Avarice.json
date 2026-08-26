@@ -5,8 +5,8 @@
   "Description": "Positional feedback with pixel perfect rear/flank tracking, range indicators, and more.",
   "Punchline": "Positional feedback with pixel perfect rear/flank tracking, range indicators, and more.",
   "ApplicableVersion": "any",
-  "RepoUrl": "https://github.com/PunishXIV/Avarice",
-  "IconUrl": "https://love.puni.sh/resources/avarice.png",
+  "RepoUrl": "https://github.com/ffxiv-tc-port/Avarice",
+  "IconUrl": "https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/icons/Avarice.png",
     "Tags": [
         "combat"
     ],

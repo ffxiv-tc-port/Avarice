@@ -11,14 +11,14 @@ namespace Avarice.ConfigurationWindow
     {
         internal static void Draw()
         {
-            if(ImGui.Checkbox("Enable Splatoon IPC", ref P.config.SplatoonUnsafePixel))
+            if(ImGui.Checkbox("Enable Splatoon IPC".Loc(), ref P.config.SplatoonUnsafePixel))
             {
                 WriteRequest();
             }
-            ImGuiComponents.HelpMarker("Enables changing the colour of your Player Damage Pixel based on if your position is determined to be within the bounds of a preset configured as \"dangerous\".");
-            ImGui.ColorEdit4("Danger Pixel Colour", ref P.config.SplatoonPixelCol, ImGuiColorEditFlags.NoInputs);
-            ImGuiComponents.HelpMarker("The colour your Player Damage Pixel will change to if you are standing in a configured danger zone. You must have the Player Damage Pixel feature enabled for this to do anything.");
-            ImGuiEx.TextWrapped($"This feature will probably not function for any pre-6.5 presets as it specifically requires the preset author to apply the \"Dangerous\" attribute to the preset metadata for Avarice to read it. Additionally, you must enable this feature in Splatoon in General settings.");
+            ImGuiComponents.HelpMarker("Enables changing the colour of your Player Damage Pixel based on if your position is determined to be within the bounds of a preset configured as \"dangerous\".".Loc());
+            ImGui.ColorEdit4("Danger Pixel Colour".Loc(), ref P.config.SplatoonPixelCol, ImGuiColorEditFlags.NoInputs);
+            ImGuiComponents.HelpMarker("The colour your Player Damage Pixel will change to if you are standing in a configured danger zone. You must have the Player Damage Pixel feature enabled for this to do anything.".Loc());
+            ImGuiEx.TextWrapped("This feature will probably not function for any pre-6.5 presets as it specifically requires the preset author to apply the \"Dangerous\" attribute to the preset metadata for Avarice to read it. Additionally, you must enable this feature in Splatoon in General settings.".Loc());
         }
 
         internal static void WriteRequest()

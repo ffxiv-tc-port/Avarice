@@ -24,29 +24,29 @@ namespace Avarice.ConfigurationWindow
             ImGui.PopFont();
             ImGuiEx.Tooltip($"Ich habe es für sie gemacht.\nEs tut mir leid, dass ich nicht der Grösste bin.\nAber du bist meine Inspiration.");
             ImGui.SetCursorPos(cur);
-            ImGuiEx.TextWrapped($"Configurable arena centre pixel with additional boss alignment pixel with colour validation.");
+            ImGuiEx.TextWrapped("Configurable arena centre pixel with additional boss alignment pixel with colour validation.".Loc());
             ImGuiGroup.BeginGroupBox();
-            ImGui.Checkbox($"Enable Tank Centralisation Pixel", ref P.currentProfile.EnableTankMiddle);
-            ImGuiComponents.HelpMarker($"Displays a dot directly under the boss to assist with arena centralisation. This is a per-profile option.");
-            ImGui.Checkbox($"Enable Duty Arena Centre Pixel", ref P.currentProfile.EnableDutyMiddle);
-            ImGuiComponents.HelpMarker($"Displays a dot at the configured centre of the duty arena. This is a per-profile option.");
-            ImGui.ColorEdit4("Duty Centre Pixel Colour", ref P.config.DutyMidPixelCol, ImGuiColorEditFlags.NoInputs);
+            ImGui.Checkbox("Enable Tank Centralisation Pixel".Loc(), ref P.currentProfile.EnableTankMiddle);
+            ImGuiComponents.HelpMarker("Displays a dot directly under the boss to assist with arena centralisation. This is a per-profile option.".Loc());
+            ImGui.Checkbox("Enable Duty Arena Centre Pixel".Loc(), ref P.currentProfile.EnableDutyMiddle);
+            ImGuiComponents.HelpMarker("Displays a dot at the configured centre of the duty arena. This is a per-profile option.".Loc());
+            ImGui.ColorEdit4("Duty Centre Pixel Colour".Loc(), ref P.config.DutyMidPixelCol, ImGuiColorEditFlags.NoInputs);
             ImGui.SetNextItemWidth(100f);
-            ImGui.SliderFloat("Duty Centre Radius", ref P.config.DutyMidRadius, 0.5f, 5f);
-            ImGui.ColorEdit4("Centred Pixel Colour", ref P.config.CenteredPixelColor, ImGuiColorEditFlags.NoInputs);
-            ImGui.ColorEdit4("Uncentred Pixel Colour", ref P.config.UncenteredPixelColor, ImGuiColorEditFlags.NoInputs);
+            ImGui.SliderFloat("Duty Centre Radius".Loc(), ref P.config.DutyMidRadius, 0.5f, 5f);
+            ImGui.ColorEdit4("Centred Pixel Colour".Loc(), ref P.config.CenteredPixelColor, ImGuiColorEditFlags.NoInputs);
+            ImGui.ColorEdit4("Uncentred Pixel Colour".Loc(), ref P.config.UncenteredPixelColor, ImGuiColorEditFlags.NoInputs);
             ImGui.SetNextItemWidth(100f);
-            ImGui.SliderFloat("Tank Pixel Size", ref P.config.CenterPixelThickness, 0.5f, 5f);
+            ImGui.SliderFloat("Tank Pixel Size".Loc(), ref P.config.CenterPixelThickness, 0.5f, 5f);
             ImGuiGroup.EndGroupBox();
 
-            ImGuiEx.Text($"Duty Centralisation zone overrides");
+            ImGuiEx.Text("Duty Centralisation zone overrides".Loc());
             ImGuiGroup.BeginGroupBox();
-            ImGuiEx.TextV("Add new override:");
+            ImGuiEx.TextV("Add new override:".Loc());
             ImGui.SameLine();
             ImGuiEx.SetNextItemFullWidth();
-            if(ImGui.BeginCombo("##addoverride", "Select..."))
+            if(ImGui.BeginCombo("##addoverride", "Select...".Loc()))
             {
-                ImGui.InputTextWithHint("##fltr", "Filter", ref Filter, 100);
+                ImGui.InputTextWithHint("##fltr", "Filter".Loc(), ref Filter, 100);
                 foreach(var x in Svc.Data.GetExcelSheet<TerritoryType>())
                 {
                     if (P.config.DutyMiddleOverrides.ContainsKey(x.RowId)) continue;
@@ -63,8 +63,8 @@ namespace Avarice.ConfigurationWindow
             }
             if(P.config.DutyMiddleOverrides.Count > 0 && ImGui.BeginTable("TableOverrides", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit))
             {
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Middle point override");
+                ImGui.TableSetupColumn("Name".Loc(), ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Middle point override".Loc());
                 ImGui.TableSetupColumn(" ");
                 ImGui.TableHeadersRow();
                 foreach (var x in P.config.DutyMiddleOverrides.ToArray())
@@ -75,7 +75,7 @@ namespace Avarice.ConfigurationWindow
                     ImGuiEx.TextV($"{Svc.Data.GetExcelSheet<TerritoryType>().GetRow(x.Key).ContentFinderCondition.Value.Name}");
                     ImGui.TableNextColumn();
                     var isAuto = x.Value == null;
-                    if(ImGui.Checkbox("Auto", ref isAuto))
+                    if(ImGui.Checkbox("Auto".Loc(), ref isAuto))
                     {
                         if (isAuto)
                         {
