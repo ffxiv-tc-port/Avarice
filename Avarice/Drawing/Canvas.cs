@@ -34,7 +34,7 @@ internal unsafe class Canvas : Window
     public override bool DrawConditions()
     {
         // Basic check - player exists
-        if (Svc.ClientState.LocalPlayer == null)
+        if (Svc.Objects.LocalPlayer == null)
             return false;
 
         // Check if drawing is enabled in profile
@@ -164,7 +164,7 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.EnablePlayerRing && IsConditionMatching(P.currentProfile.PlayerRingSettings.DisplayCondition))
         {
-            CircleXZ(Svc.ClientState.LocalPlayer.Position, Svc.ClientState.LocalPlayer.HitboxRadius, P.currentProfile.PlayerRingSettings);
+            CircleXZ(Svc.Objects.LocalPlayer.Position, Svc.Objects.LocalPlayer.HitboxRadius, P.currentProfile.PlayerRingSettings);
         }
 
         if (P.currentProfile.EnableFrontSegment && IsConditionMatching(P.currentProfile.FrontSegmentIndicator.DisplayCondition))
@@ -177,7 +177,7 @@ internal unsafe class Canvas : Window
         }
 
         if (P.currentProfile.EnableAnticipatedPie && IsConditionMatching(P.currentProfile.AnticipatedPieSettings.DisplayCondition)
-           && (!P.currentProfile.AnticipatedDisableTrueNorth || !Svc.ClientState.LocalPlayer.StatusList.Any(x => x.StatusId.EqualsAny(1250u))))
+           && (!P.currentProfile.AnticipatedDisableTrueNorth || !Svc.Objects.LocalPlayer.StatusList.Any(x => x.StatusId.EqualsAny(1250u))))
         {
             {
                 if (Svc.Targets.Target is IBattleNpc bnpc && bnpc.IsHostile() && bnpc.HasPositional())
@@ -195,7 +195,7 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.EnablePlayerDot && IsConditionMatching(P.currentProfile.PlayerDotSettings.DisplayCondition))
         {
-            if (Svc.GameGui.WorldToScreen(Svc.ClientState.LocalPlayer.Position, out var pos))
+            if (Svc.GameGui.WorldToScreen(Svc.Objects.LocalPlayer.Position, out var pos))
             {
                 ImGui.GetWindowDrawList().AddCircleFilled(
                 new Vector2(pos.X, pos.Y),
@@ -209,7 +209,7 @@ internal unsafe class Canvas : Window
         {
             foreach (var x in Svc.Party)
             {
-                if (x.GameObject is IPlayerCharacter pc && x.GameObject.Address != Svc.ClientState.LocalPlayer.Address)
+                if (x.GameObject is IPlayerCharacter pc && x.GameObject.Address != Svc.Objects.LocalPlayer.Address)
                 {
                     if (Svc.GameGui.WorldToScreen(x.GameObject.Position, out var pos))
                     {
@@ -227,7 +227,7 @@ internal unsafe class Canvas : Window
         {
             foreach (var x in Svc.Objects)
             {
-                if (x is IPlayerCharacter pc && x.Address != Svc.ClientState.LocalPlayer.Address
+                if (x is IPlayerCharacter pc && x.Address != Svc.Objects.LocalPlayer.Address
                   && (!P.currentProfile.PartyDot || !Svc.Party.Any(x => x.Address == x.GameObject?.Address)))
                 {
                     if (Svc.GameGui.WorldToScreen(x.Position, out var pos))

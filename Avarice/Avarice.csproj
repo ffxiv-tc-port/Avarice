@@ -32,13 +32,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="res\AutoDetectTankRadius.csv">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
-
-	<ItemGroup>
-		<Content Include="LanguageChineseTraditional.ini">
+		<!-- Dalamud.NET.Sdk 關閉了 EnableDefaultNoneItems,原本的 None Update 不會產生任何項目,
+		     導致 res\AutoDetectTankRadius.csv 從未被複製進輸出與 zip;改用 Content Include 明確打包 -->
+		<Content Include="res\AutoDetectTankRadius.csv">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>

@@ -103,9 +103,9 @@ public unsafe class Avarice : IDalamudPlugin
     private CardinalDirection GetCardinalDirectionForObject(IntPtr arg)
     {
         var obj = Svc.Objects.CreateObjectReference(arg);
-        if (obj != null && Svc.ClientState.LocalPlayer != null)
+        if (obj != null && Svc.Objects.LocalPlayer != null)
         {
-            return MathHelper.GetCardinalDirection((MathHelper.GetRelativeAngle(Svc.ClientState.LocalPlayer.Position, obj.Position) + obj.Rotation.RadToDeg()) % 360);
+            return MathHelper.GetCardinalDirection((MathHelper.GetRelativeAngle(Svc.Objects.LocalPlayer.Position, obj.Position) + obj.Rotation.RadToDeg()) % 360);
         }
         else
         {
@@ -214,6 +214,9 @@ public unsafe class Avarice : IDalamudPlugin
         {
             Svc.PluginInterface.GetIpcProvider<IntPtr, CardinalDirection>("Avarice.CardinalDirection").UnregisterFunc();
         });
+        // PositionalManager 在 TickScheduler 裡才建立,Dispose 可能早於它 → 一律 ?. 並包 Safe。
+        // 它訂閱了 Svc.ClientState.Login(方位表校準診斷的節流重置),不解訂閱會留下懸空處理常式。
+        Safe(() => PositionalManager?.Dispose());
         memory.Dispose();
         ActionWatching.Dispose();
         ComboCache.ComboCacheInstance.Dispose();
@@ -224,11 +227,17 @@ public unsafe class Avarice : IDalamudPlugin
 
     private void Tick(object framework)
     {
-        if (Framework.Instance()->FrameCounter - PositionalStatus[0] > 1)
+        // 🔴 與 Drawing/Functions.DrawAnticipatedPos 的寫入端同一個形狀（同一個 PositionalStatus
+        //    新鮮度戳記），只修寫入端等於把同一個 AVE 留在讀取端。Framework.Instance() 是
+        //    isPointer:true 的靜態位址，會合法回 null，裸解參考是攔不到的 AVE。
+        //    ⚠️ 這一處不在原掃描清單裡，是修寫入端時追消費端一併掃到的。
+        //    取不到就回 0：`0 - stamp > 1` 對 uint 環繞後幾乎必為真 ⇒ 方位狀態被清成 0，
+        //    與「戳記過期」同一條路徑，不會顯示過期的方位資訊。
+        if (Drawing.Functions.CurrentFrameCounter() - PositionalStatus[0] > 1)
         {
             PositionalStatus[1] = 0;
         }
-        if (Svc.ClientState.LocalPlayer != null)
+        if (Svc.Objects.LocalPlayer != null)
         {
             var newJob = (uint)Player.Job;
             if (newJob != Job)

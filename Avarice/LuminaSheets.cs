@@ -51,15 +51,17 @@ namespace Avarice
 
         public static bool HasPositional(this IGameObject obj)
         {
-            // If the "Only show for positional targets" configuration is disabled,
-            // ignore BNpcBase filtering and treat all targets as positional.
-            if (!P.config.OnlyDrawIfPositional)
-                return true;
-
+            // 全向敵人(BNpcBase.IsOmnidirectional)沒有方位差別,一律不算「有方位」。
+            // 這個判定必須是無條件的:過去它被綁在 OnlyDrawIfPositional 上,該設定關閉時
+            // 直接 return true,等於整個全向過濾失效 —— Canvas 的預測位置圓餅會照樣畫在
+            // 根本沒有方位可言的敵人身上。對照組:BossModReborn 的 !Omnidirectional 判定
+            // 同樣是無條件的。
+            // OnlyDrawIfPositional 字面上的職責是「只在目標需要方位時才繪製整個疊加層」,
+            // 由 Canvas.DrawConditions() 自己把關(它會先檢查該設定再呼叫本方法),與這裡無關。
             if (obj is not IBattleNpc bnpc)
                 return false;
 
-            uint dataId = bnpc.DataId;
+            uint dataId = bnpc.BaseId;
             if (PositionalStatusCache.TryGetValue(dataId, out bool hasPositional))
                 return hasPositional;
 
@@ -73,10 +75,10 @@ namespace Avarice
 
         public static bool HasTrueNorthEffect()
         {
-            if (Svc.ClientState.LocalPlayer == null)
+            if (Svc.Objects.LocalPlayer == null)
                 return false;
 
-            foreach (var status in Svc.ClientState.LocalPlayer.StatusList)
+            foreach (var status in Svc.Objects.LocalPlayer.StatusList)
             {
                 if (TrueNorthEffects.Contains(status.StatusId))
                     return true;
