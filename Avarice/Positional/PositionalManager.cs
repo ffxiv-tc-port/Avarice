@@ -72,7 +72,7 @@ public class PositionalManager : IDisposable
 			};
 		}
 
-		// 用 Information:使用者跑 LogLevel 2,這行是判斷「方位表到底有沒有載進來」的唯一依據。
+		// 用 Information:使用者跑 LogLevel 1,這行是判斷「方位表到底有沒有載進來」的唯一依據。
 		PluginLog.Information($"Loaded {_actionStore.Count} positional actions ({StaticData.PositionalPotencies.Records.Length} rows) from embedded table");
 	}
 
