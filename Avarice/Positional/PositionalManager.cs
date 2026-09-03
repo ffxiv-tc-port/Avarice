@@ -107,7 +107,8 @@ public class PositionalManager : IDisposable
 		}
 
 		string known = string.Join(",", action.Positionals.Keys.OrderBy(x => x));
-		PluginLog.Information($"[方位表校準] action={action.Id} ({action.ActionName}) 實測percent={percent} 表內=[{known}]");
+		// 帶上方位別與「表內來源」:光看 percent 對不上,分不出是表過期還是探針量錯。
+		PluginLog.Information($"[方位表校準] action={action.Id} ({action.ActionName}/{action.ActionPosition}) 實測percent={percent} 表內=[{known}] 表來源=StaticData/PositionalPotencies.cs(EffectEntry.param2;由 ActionTransient.Description 的威力值推導)");
 	}
 
 	public PositionalParameters GetPositionalParameters(int actionId, int percent)

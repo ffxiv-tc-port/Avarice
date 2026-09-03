@@ -4,6 +4,29 @@ internal static class PositionalPotencies
 {
     internal record Row(int Id, int Percent, bool IsHit, string Name, string Position, string Comment);
 
+    // ── Percent 欄的量綱 ──────────────────────────────────────────────
+    // Percent 不是傷害倍率,是 action-effect 結構裡 EffectEntry.param2 的**觀測值**
+    // (Memory.cs 直接拿 entry.param2 來查這張表)。2026-09-04 以台服 7.20 EXD
+    // 逐項回推出的模型是:
+    //
+    //     param2 = floor(100 * (P_applied - P_base) / P_applied)
+    //
+    //   P_base    = 該技能在**當下狀態**下的「未連擊、未命中方位」威力
+    //   P_applied = 實際套用的威力(含連擊加成與方位加成)
+    //   狀態類威力增益(風纏/猛虎功力/絞決效果提高/銳牙…)會同時抬高兩邊,
+    //   所以**不進分子、只進分母** —— 這是最容易寫錯的一點。
+    //
+    // 威力數字唯一的離線來源是 ActionTransient.Description 的文字
+    // (Action 表沒有威力欄)。校驗工具:
+    //   ~/.claude/tools/exd/avarice_positional_calib.py
+    // 該工具對本表 17 個技能推導出的 28 個值全部命中現行表,唯二的分歧就是
+    // 下面 34621/34622 那兩筆,而分歧方向與使用者實機探針回報的值一致。
+    //
+    // ⚠️ 34610~34613(參之牙四式)實機探針回報 param2=40,表內沒有這個值。
+    //    這四招是「轉化型連擊按鍵」,tooltip 只列連擊後威力(340/方位 400),
+    //    未連擊威力**不在任何 EXD 欄位**⇒ P_base 離線取不到 ⇒ 本輪不動數字。
+    //    (若 P_base=200 則非銳牙態=50[已在表內]、銳牙態=40[缺];詳見交接報告。)
+    // ─────────────────────────────────────────────────────────────────
     internal static readonly Row[] Records =
     {
         //     Id  Percent  IsHit  ActionName               ActionPosition  Comment
@@ -94,8 +117,14 @@ internal static class PositionalPotencies
         new(34613, 70, true,  "Hindsbane Fang",        "rear",  ""),
         new(34613, 50, true,  "Hindsbane Fang",        "rear",  "80 ?"),
         new(34613, 63, true,  "Hindsbane Fang",        "rear",  "80 ?"),
+        // 台服 7.20 實測 param2=8,而表內只有 7 ⇒ 這兩招的方位命中永遠判不出來。
+        // 8 的來源:ActionTransient.Description(貳之蛇【猛襲】/【疾速】)
+        //   「威力：570 / 側面(背面)攻擊威力：620」⇒ floor(100*(620-570)/620) = 8。
+        // 7 是舊版威力留下的歷史值,一併保留(台服 7.20 不會再產生 7)。
         new(34621,  7, true,  "Hunter's Coil",         "flank", "lv 100"),
+        new(34621,  8, true,  "Hunter's Coil",         "flank", "TC 7.20 570->620"),
         new(34622,  7, true,  "Swiftskin's Coil",      "rear",  "lv 100"),
+        new(34622,  8, true,  "Swiftskin's Coil",      "rear",  "TC 7.20 570->620"),
         new(36947, 16, true,  "Pouncing Coeurl",       "flank", "100 Unbuffed"),
         new(36947, 11, true,  "Pouncing Coeurl",       "flank", "100 Buffed"),
         new(36970,  7, true,  "Executioner's Gibbet",  "flank", ""),
