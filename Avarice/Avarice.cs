@@ -54,7 +54,6 @@ public unsafe class Avarice : IDalamudPlugin
                 config.Profiles.Add(new() { Name = "Default profile", IsDefault = true });
             }
             currentProfile = config.Profiles.FirstOr0(x => x.IsDefault);
-            //Svc.GameNetwork.NetworkMessage += OnNetworkMessage;
             RotationSolverWatcher = new();
             memory = new();
             windowSystem = new();
@@ -83,7 +82,6 @@ public unsafe class Avarice : IDalamudPlugin
                 }
             })
             { HelpMessage = "Toggle configuration window. Use '/avarice draw' to toggle drawing, '/avarice debug' for debug mode.".Loc() });
-            //LoadOpcode.Start();
             LuminaSheets.Init();
             Svc.PluginInterface.GetIpcProvider<IntPtr, CardinalDirection>("Avarice.CardinalDirection").RegisterFunc(GetCardinalDirectionForObject);
             Svc.Framework.Update += Tick;
@@ -205,7 +203,6 @@ public unsafe class Avarice : IDalamudPlugin
     public void Dispose()
     {
         Safe(() => Svc.PluginInterface.SavePluginConfig(config));
-        //Svc.GameNetwork.NetworkMessage -= OnNetworkMessage;
         Svc.PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         _ = Svc.Commands.RemoveHandler("/avarice");
         Svc.Condition.ConditionChange -= OnConditionChange;
