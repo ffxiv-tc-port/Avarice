@@ -1,6 +1,7 @@
 ﻿using Avarice.Data;
 using Avarice.Positional;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
 using Dalamud.Game.Text.SeStringHandling;
 using ECommons.EzSharedDataManager;
@@ -43,7 +44,8 @@ public unsafe class Avarice : IDalamudPlugin
     {
         P = this;
         ECommonsMain.Init(pi, this, Module.DalamudReflector, Module.ObjectFunctions);
-        PunishLibMain.Init(pi, Svc.PluginInterface.InternalName, PunishOption.DefaultKoFi);
+        ECommons.LanguageHelpers.Localization.Init("ChineseTraditional");
+        PunishLibMain.Init(pi, Svc.PluginInterface.InternalName, new AboutPlugin() { IconPath = LocalIconPath(pi) }, PunishOption.DefaultKoFi);
         _ = new TickScheduler(delegate
         {
             PositionalStatus = EzSharedData.GetOrCreate<uint[]>("Avarice.PositionalStatus", [0, 0]);
@@ -53,7 +55,6 @@ public unsafe class Avarice : IDalamudPlugin
                 config.Profiles.Add(new() { Name = "Default profile", IsDefault = true });
             }
             currentProfile = config.Profiles.FirstOr0(x => x.IsDefault);
-            //Svc.GameNetwork.NetworkMessage += OnNetworkMessage;
             RotationSolverWatcher = new();
             memory = new();
             windowSystem = new();
@@ -74,15 +75,14 @@ public unsafe class Avarice : IDalamudPlugin
                 else if (args == "draw") // Added new command for toggling drawing
                 {
                     P.currentProfile.DrawingEnabled = !P.currentProfile.DrawingEnabled;
-                    Svc.Chat.Print($"Drawing {(P.currentProfile.DrawingEnabled ? "enabled" : "disabled")}");
+                    Svc.Chat.Print("Drawing ??".Loc(P.currentProfile.DrawingEnabled ? "enabled".Loc() : "disabled".Loc()));
                 }
                 else
                 {
                     configWindow.IsOpen = !configWindow.IsOpen;
                 }
             })
-            { HelpMessage = "Toggle configuration window. Use '/avarice draw' to toggle drawing, '/avarice debug' for debug mode." });
-            //LoadOpcode.Start();
+            { HelpMessage = "Toggle configuration window. Use '/avarice draw' to toggle drawing, '/avarice debug' for debug mode.".Loc() });
             LuminaSheets.Init();
             Svc.PluginInterface.GetIpcProvider<IntPtr, CardinalDirection>("Avarice.CardinalDirection").RegisterFunc(GetCardinalDirectionForObject);
             Svc.Framework.Update += Tick;
@@ -99,17 +99,74 @@ public unsafe class Avarice : IDalamudPlugin
         });
     }
 
+    /// <summary>
+    /// 出貨包裡與外掛庫圖示相同的 images/about-icon.png；不存在時回 null（關於分頁沿用 manifest 的 IconUrl）。
+    /// 不用 images/icon.png 這個檔名：DalamudPackager 打包時會把它從 latest.zip 剔除。
+    /// </summary>
+    private static string LocalIconPath(IDalamudPluginInterface pluginInterface)
+    {
+        var dir = pluginInterface.AssemblyLocation.DirectoryName;
+        if (dir is null) return null;
+        var path = System.IO.Path.Combine(dir, "images/about-icon.png");
+        return System.IO.File.Exists(path) ? path : null;
+    }
+
+    /// <summary>
+    /// IPC <c>Avarice.CardinalDirection</c>：算出某個物件相對於本地玩家的方位。
+    /// </summary>
+    /// <remarks>
+    /// 跑在呼叫端的執行緒上（CallGate 是直接方法呼叫），所以整段交回主執行緒執行
+    /// （<see cref="IpcFrameworkGate"/>）；已經在主執行緒上呼叫時就地執行。
+    /// <para>
+    /// 參數是呼叫端給的裸原生位址，轉回主執行緒不會讓它變有效：<c>CreateObjectReference</c>
+    /// 進去第一件事就是解參考它，位址已死就是攔不到的 <c>AccessViolationException</c>。
+    /// 所以先在本幀的物件表裡找出位址相符的那一筆（只比對 <c>Address</c>，不解參考）才讀座標與朝向。
+    /// </para>
+    /// <para>
+    /// 刻意的收窄：不在物件表裡的位址回 <c>(CardinalDirection)(-1)</c>，與「算不出來」同一個失敗值。
+    /// </para>
+    /// </remarks>
     private CardinalDirection GetCardinalDirectionForObject(IntPtr arg)
     {
-        var obj = Svc.Objects.CreateObjectReference(arg);
-        if (obj != null && Svc.ClientState.LocalPlayer != null)
+        return IpcFrameworkGate.Get("Avarice.CardinalDirection", () =>
         {
-            return MathHelper.GetCardinalDirection((MathHelper.GetRelativeAngle(Svc.ClientState.LocalPlayer.Position, obj.Position) + obj.Rotation.RadToDeg()) % 360);
-        }
-        else
+            var me = Svc.Objects.LocalPlayer;
+            if (me == null) return (CardinalDirection)(-1);
+
+            // 本地玩家的座標當場抄走，之後就不再碰 LocalPlayer。
+            var myPos = me.Position;
+
+            var obj = FindLiveObjectByAddress(arg);
+            if (obj == null) return (CardinalDirection)(-1);
+
+            return MathHelper.GetCardinalDirection((MathHelper.GetRelativeAngle(myPos, obj.Position) + obj.Rotation.RadToDeg()) % 360);
+        }, (CardinalDirection)(-1));
+    }
+
+    /// <summary>
+    /// 在<b>本幀</b>的物件表裡找出位址等於 <paramref name="address"/> 的那一筆；
+    /// 找不到回 <see langword="null"/>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 只比對 <c>Address</c> 這個欄位，<b>不解參考</b> —— 所以拿一根已經死掉的位址進來
+    /// 也只會比不中，不會崩。
+    /// 🔴 回傳的包裝<b>只在這一次呼叫裡用完就丟</b>，不存進任何欄位：本 pin 的
+    /// <c>ObjectTable</c> 是每格預先配好一個包裝、存取時就地改寫它的 <c>Address</c> 再交出來
+    /// ⇒ 跨幀持有會靜默換人或懸空。
+    /// ⚠️ 只能在遊戲主執行緒上呼叫（呼叫點已由 <see cref="IpcFrameworkGate"/> 保證）。
+    /// </remarks>
+    private static IGameObject FindLiveObjectByAddress(IntPtr address)
+    {
+        if (address == IntPtr.Zero) return null;
+
+        var length = Svc.Objects.Length;
+        for (var i = 0; i < length; i++)
         {
-            return (CardinalDirection)(-1);
+            var o = Svc.Objects[i];
+            if (o != null && o.Address == address) return o;
         }
+
+        return null;
     }
 
     private void OnConditionChange(ConditionFlag flag, bool value)
@@ -133,7 +190,7 @@ public unsafe class Avarice : IDalamudPlugin
                         var total = currentProfile.CurrentEncounterStats.Hits + currentProfile.CurrentEncounterStats.Missed;
                         var success = (int)(100f * currentProfile.CurrentEncounterStats.Hits / total);
                         Svc.Chat.Print(new SeStringBuilder()
-                    .AddText($"Positionals summary for encounter: {currentProfile.CurrentEncounterStats.Hits}/{total} - ")
+                    .AddText("Positionals summary for encounter: ??/?? - ".Loc(currentProfile.CurrentEncounterStats.Hits, total))
                     .AddUiForeground($"{success}%", ECommons.GenericHelpers.GetParsedSeSetingColor(success))
                     .Build());
                     }
@@ -204,7 +261,6 @@ public unsafe class Avarice : IDalamudPlugin
     public void Dispose()
     {
         Safe(() => Svc.PluginInterface.SavePluginConfig(config));
-        //Svc.GameNetwork.NetworkMessage -= OnNetworkMessage;
         Svc.PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         _ = Svc.Commands.RemoveHandler("/avarice");
         Svc.Condition.ConditionChange -= OnConditionChange;
@@ -213,6 +269,9 @@ public unsafe class Avarice : IDalamudPlugin
         {
             Svc.PluginInterface.GetIpcProvider<IntPtr, CardinalDirection>("Avarice.CardinalDirection").UnregisterFunc();
         });
+        // PositionalManager 在 TickScheduler 裡才建立,Dispose 可能早於它 → 一律 ?. 並包 Safe。
+        // 它訂閱了 Svc.ClientState.Login(方位表校準診斷的節流重置),不解訂閱會留下懸空處理常式。
+        Safe(() => PositionalManager?.Dispose());
         memory.Dispose();
         ActionWatching.Dispose();
         ComboCache.ComboCacheInstance.Dispose();
@@ -223,11 +282,15 @@ public unsafe class Avarice : IDalamudPlugin
 
     private void Tick(object framework)
     {
-        if (Framework.Instance()->FrameCounter - PositionalStatus[0] > 1)
+        // 🔴 Framework.Instance() 可能合法回 null，裸解參考是攔不到的 AVE ⇒ 與寫入端
+        //    （Drawing/Functions.DrawAnticipatedPos）共用 CurrentFrameCounter()。
+        //    取不到就回 0：`0 - stamp > 1` 對 uint 環繞後幾乎必為真 ⇒ 方位狀態被清成 0，
+        //    與「戳記過期」同一條路徑，不會顯示過期的方位資訊。
+        if (Drawing.Functions.CurrentFrameCounter() - PositionalStatus[0] > 1)
         {
             PositionalStatus[1] = 0;
         }
-        if (Svc.ClientState.LocalPlayer != null)
+        if (Svc.Objects.LocalPlayer != null)
         {
             var newJob = (uint)Player.Job;
             if (newJob != Job)

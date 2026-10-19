@@ -1,13 +1,43 @@
-<div align="center">
-  
-<img src="Assets/avarice_icon.png" alt="Avarice IconUrl" width="15%">
-
 # Avarice
 
-Positional feedback with pixel perfect rear/flank tracking, range indicators, and more.
+[Avarice](https://github.com/PunishXIV/Avarice) 的台服移植版。戰鬥定位輔助疊加層：像素級精準顯示背後／側面判定範圍、攻擊距離與命中回饋。
 
-<br />
+## 功能
 
-[![image](https://discordapp.com/api/guilds/1001823907193552978/embed.png?style=banner2)](https://discord.gg/Zzrcc8kmvy)
+- **當前判定區高亮**：依背後／側面即時標示目前的判定範圍。
+- **前方判定區指示**：標示正面判定範圍。
+- **目標最大近戰距離環**：可切分水平／垂直象限顯示。
+- **近戰技能／自動攻擊範圍指示器**：可分別調整技能攻擊距離與自動攻擊距離大小。
+- **玩家傷害判定像素**：顯示角色實際命中判定點；可同時顯示隊伍或全體玩家的判定像素。
+- **玩家攻擊距離圈**：顯示自動攻擊觸及範圍。
+- **命中回饋**：命中／未命中背後或側面時，可選擇顯示 VFX（需安裝 VFXEditor）
+  或輸出聊天訊息，並可在戰鬥結束時輸出整場結算摘要。
+- **預期判定指示器**：預測下一輪背後／側面判定，並依職業客製化提示——
+  忍者（攻其不備冷卻中提示）、武士（明鏡止水時停用）、奪魂者（背後／側面
+  優先順序），亦可整合 Rotation Solver 進行預測。
+- **Splatoon 整合**：可依 Splatoon 預設圈選的危險區域改變玩家傷害判定像素顏色。
+- **坦克輔助**：在首領正下方與副本場地中心各畫一個像素點，是否對準中心以顏色區分；場地中心可依區域覆寫。
+- **設定檔（Profile）**：可建立多套設定並依職業指派對應設定檔。
+- **統計**：記錄各職業命中率與本場戰鬥即時命中數據。
+- **提供給其他插件的 IPC**：`Avarice.CardinalDirection` 回報你位在某個目標的哪一面（依目標面向分成四個方向）。
 
-</div>
+## 指令
+
+- `/avarice`：開啟設定視窗。
+- `/avarice draw`：切換是否繪製疊加層。
+- `/avarice debug`：切換除錯模式。
+
+## 台服版的修改
+
+- 方位表補上台服的毒蛇劍士連招資料，方位命中判得出來。
+- 別的插件透過 IPC 問方位時，先確認目標還在、並在遊戲主執行緒上計算，不會再把遊戲弄崩。
+- 遊戲改版讓技能追蹤的特徵碼失效時，只停用受影響的那一項，其餘功能照常。
+- 同時開「隊伍成員」與「所有玩家」判定像素時，隊友不再被重畫成「所有玩家」的顏色。
+- 多處降低記憶體用量。
+- 介面繁體中文化（職業名、技能名用台服官方用語）。
+
+## 需要搭配的插件
+
+- 選用：VFXEditor（命中回饋特效）、Splatoon（危險區域變色）、Rotation Solver Reborn（預期判定）
+
+原作者：[PunishXIV/Avarice](https://github.com/PunishXIV/Avarice)

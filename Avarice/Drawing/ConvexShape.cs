@@ -1,6 +1,7 @@
 ﻿namespace Avarice.Drawing;
 
-internal class ConvexShape
+// 值型別：每幀畫幾十個一次性圖形不必各配置一個物件。只當區域變數用（複製後兩份各自累積路徑狀態）。
+internal struct ConvexShape
 {
     internal readonly Brush Brush;
     internal readonly ImDrawListPtr DrawList;

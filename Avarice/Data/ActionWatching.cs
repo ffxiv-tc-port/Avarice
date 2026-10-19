@@ -30,6 +30,10 @@ namespace Avarice.Data
 
 		internal static readonly List<uint> CombatActions = [];
 
+		// ECommons 內建的 ActionEffect.Sig 比台服客戶端新、掃不到，所以用這條自己掛鉤（Memory.cs 與本類別的靜態建構子）。
+		// 對不上時兩處各自記一行、各自停用：Memory 的方位命中回饋不動作；本類別不追蹤最後使用的技能。
+		internal const string ActionEffectSig = "40 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24";
+
 		private static readonly Hook<ActionEffect.ProcessActionEffect> ReceiveActionEffectHook;
 
 		private static void ReceiveActionEffectDetour(uint sourceId, Character* sourceCharacter, Vector3* pos, EffectHeader* effectHeader, EffectEntry* effectArray, ulong* effectTail)
@@ -39,8 +43,8 @@ namespace Avarice.Data
 				CombatActions.Clear();
 			}
 
-			ReceiveActionEffectHook!.Original(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
-			ActionEffectHeader header = Marshal.PtrToStructure<ActionEffectHeader>((nint)effectHeader);
+			ReceiveActionEffectHook!.OriginalDisposeSafe(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
+			var header = *(ActionEffectHandler.Header*)effectHeader;
 
 			if (ActionType is 13 or 2)
 			{
@@ -49,7 +53,7 @@ namespace Avarice.Data
 
 			if (header.ActionId != 7 &&
 				header.ActionId != 8 &&
-        sourceId == Svc.ClientState.LocalPlayer.EntityId)
+        sourceId == Svc.Objects.LocalPlayer.EntityId)
 			{
 				TimeLastActionUsed = DateTime.Now;
 				LastActionUseCount++;
@@ -86,7 +90,7 @@ namespace Avarice.Data
 		{
 			try
 			{
-				SendActionHook!.Original(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
+				SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 				TimeLastActionUsed = DateTime.Now;
 				ActionType = actionType;
 
@@ -95,7 +99,7 @@ namespace Avarice.Data
 			catch (Exception ex)
 			{
 				Svc.Log.Error(ex, "SendActionDetour");
-				SendActionHook!.Original(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
+				SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 			}
 		}
 
@@ -204,8 +208,25 @@ namespace Avarice.Data
 
 		static unsafe ActionWatching()
 		{
-      ReceiveActionEffectHook ??= Svc.Hook.HookFromSignature<ActionEffect.ProcessActionEffect>(ActionEffect.Sig, ReceiveActionEffectDetour);
-			SendActionHook ??= Svc.Hook.HookFromSignature<SendActionDelegate>("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 48 8B E9 41 0F B7 D9", SendActionDetour);
+			ReceiveActionEffectHook = TryHook<ActionEffect.ProcessActionEffect>(ActionEffectSig, ReceiveActionEffectDetour,
+				"ReceiveActionEffect", "不追蹤最後使用的技能（毒蛇劍士壹之蛇【強碎】之後的方位預判不顯示）");
+			SendActionHook = TryHook<SendActionDelegate>("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 84 24 ?? ?? ?? ?? 48 8B E9 41 0F B7 D9", SendActionDetour,
+				"SendAction", "不記錄送出的技能類型（使用道具、坐騎不再從最後使用的技能裡排除）");
+		}
+
+		// 契約：hook 建不起來（特徵碼對不上）時回 null 並記一行 Warning，不讓本類別的型別初始化失敗；
+		// 兩個 hook 欄位因此可能是 null，使用端一律 ?. 存取。型別初始化只跑一次，所以每條最多記一次。
+		private static Hook<T> TryHook<T>(string sig, T detour, string name, string lost) where T : Delegate
+		{
+			try
+			{
+				return Svc.Hook.HookFromSignature<T>(sig, detour);
+			}
+			catch (Exception e)
+			{
+				PluginLog.Warning($"[ActionWatching] {name} 的 hook 建不起來，{lost}；其餘功能照常。{e.GetType().Name}: {e.Message}（特徵碼 {sig}）");
+				return null;
+			}
 		}
 
 
@@ -230,7 +251,7 @@ namespace Avarice.Data
 
 		public static void Disable()
 		{
-			ReceiveActionEffectHook.Disable();
+			ReceiveActionEffectHook?.Disable();
 			SendActionHook?.Disable();
 			Svc.Condition.ConditionChange -= ResetActions;
 		}
@@ -306,65 +327,5 @@ namespace Avarice.Data
 			Weaponskill,
 			Unknown
 		}
-	}
-
-	internal static unsafe class ActionManagerHelper
-	{
-		private static readonly nint actionMgrPtr;
-
-		public static ushort CurrentSeq
-		{
-			get
-			{
-				return actionMgrPtr != nint.Zero ? (ushort)Marshal.ReadInt16(actionMgrPtr + 0x110) : (ushort)0;
-			}
-		}
-
-		public static ushort LastRecievedSeq
-		{
-			get
-			{
-				return actionMgrPtr != nint.Zero ? (ushort)Marshal.ReadInt16(actionMgrPtr + 0x112) : (ushort)0;
-			}
-		}
-
-		public static bool IsCasting
-		{
-			get
-			{
-				return actionMgrPtr != nint.Zero && Marshal.ReadByte(actionMgrPtr + 0x28) != 0;
-			}
-		}
-
-		public static uint CastingActionId
-		{
-			get
-			{
-				return actionMgrPtr != nint.Zero ? (uint)Marshal.ReadInt32(actionMgrPtr + 0x24) : 0u;
-			}
-		}
-
-		public static uint CastTargetObjectId
-		{
-			get
-			{
-				return actionMgrPtr != nint.Zero ? (uint)Marshal.ReadInt32(actionMgrPtr + 0x38) : 0u;
-			}
-		}
-
-		static ActionManagerHelper()
-		{
-			actionMgrPtr = (nint)ActionManager.Instance();
-		}
-	}
-
-	[StructLayout(LayoutKind.Explicit)]
-	public struct ActionEffectHeader
-	{
-		[FieldOffset(0x0)] public long TargetObjectId;
-		[FieldOffset(0x8)] public uint ActionId;
-		[FieldOffset(0x14)] public uint UnkObjectId;
-		[FieldOffset(0x18)] public ushort Sequence;
-		[FieldOffset(0x1A)] public ushort Unk_1A;
 	}
 }

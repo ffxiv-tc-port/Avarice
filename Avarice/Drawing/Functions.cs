@@ -125,12 +125,22 @@ internal static unsafe class Functions
         }
     }
 
+    // Framework.Instance() 是 isPointer 的靜態位址，遊戲尚未建立單例時回 null；裸解參考 null 原生指標是
+    // try/catch 攔不到的 AVE。每幀繪製路徑，不記 log。
+    // 取不到就回 0：PositionalStatus[0] 是「這一幀有畫方位提示」的新鮮度戳記，消費端（Avarice.Tick）
+    // 判 `FrameCounter - stamp > 1` 就把狀態清成 0，所以回 0 等於立刻過期，不會顯示過期的方位資訊。
+    internal static uint CurrentFrameCounter()
+    {
+        var framework = Framework.Instance();
+        return framework == null ? 0u : framework->FrameCounter;
+    }
+
     internal static void DrawAnticipatedPos(IBattleNpc bnpc)
     {
         void DrawRear()
         {
             ActorConeXZ(bnpc, bnpc.HitboxRadius + GetSkillRadius(), Maths.Radians(180 - 45), Maths.Radians(180 + 45), P.currentProfile.AnticipatedPieSettings);
-            P.PositionalStatus[0] = Framework.Instance()->FrameCounter;
+            P.PositionalStatus[0] = CurrentFrameCounter();
             P.PositionalStatus[1] = 1;
         }
 
@@ -138,7 +148,7 @@ internal static unsafe class Functions
         {
             ActorConeXZ(bnpc, bnpc.HitboxRadius + GetSkillRadius(), Maths.Radians(270 - 45), Maths.Radians(270 + 45), P.currentProfile.AnticipatedPieSettingsFlank);
             ActorConeXZ(bnpc, bnpc.HitboxRadius + GetSkillRadius(), Maths.Radians(90 - 45), Maths.Radians(90 + 45), P.currentProfile.AnticipatedPieSettingsFlank);
-            P.PositionalStatus[0] = Framework.Instance()->FrameCounter;
+            P.PositionalStatus[0] = CurrentFrameCounter();
             P.PositionalStatus[1] = 2;
         }
 

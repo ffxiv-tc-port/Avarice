@@ -34,7 +34,7 @@ internal unsafe class Canvas : Window
     public override bool DrawConditions()
     {
         // Basic check - player exists
-        if (Svc.ClientState.LocalPlayer == null)
+        if (Svc.Objects.LocalPlayer == null)
             return false;
 
         // Check if drawing is enabled in profile
@@ -59,6 +59,19 @@ internal unsafe class Canvas : Window
     public override void Draw()
     {
         // Drawing is already checked in DrawConditions() so no need for early return here
+        // 目標包裝每次存取都會 new 一個；本幀內目標不會變，第一次用到時各取一次重用。
+        IGameObject target = null, focus = null;
+        var targetsFetched = false;
+        void FetchTargets()
+        {
+            if (targetsFetched)
+            {
+                return;
+            }
+            targetsFetched = true;
+            target = Svc.Targets.Target;
+            focus = Svc.Targets.FocusTarget;
+        }
 
         DrawTankMiddle();
         if (P.currentProfile.CompassEnable && IsConditionMatching(P.currentProfile.CompassCondition))
@@ -109,14 +122,15 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.EnableCurrentPie && IsConditionMatching(P.currentProfile.CurrentPieSettings.DisplayCondition))
         {
+            FetchTargets();
             {
-                if (Svc.Targets.Target is IBattleNpc bnpc && bnpc.IsHostile())
+                if (target is IBattleNpc bnpc && bnpc.IsHostile())
                 {
                     DrawCurrentPos(bnpc);
                 }
             }
             {
-                if (Svc.Targets.FocusTarget is IBattleNpc bnpc && Svc.Targets.FocusTarget.Address != Svc.Targets.Target?.Address && bnpc.IsHostile())
+                if (focus is IBattleNpc bnpc && focus.Address != target?.Address && bnpc.IsHostile())
                 {
                     DrawCurrentPos(bnpc);
                 }
@@ -125,8 +139,9 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.EnableMaxMeleeRing && IsConditionMatching(P.currentProfile.MaxMeleeSettingsN.DisplayCondition))
         {
+            FetchTargets();
             {
-                if (Svc.Targets.Target is IBattleNpc bnpc && bnpc.IsHostile())
+                if (target is IBattleNpc bnpc && bnpc.IsHostile())
                 {
                     if (P.currentProfile.Radius3)
                     {
@@ -143,8 +158,8 @@ internal unsafe class Canvas : Window
                 }
             }
             {
-                if (Svc.Targets.FocusTarget is IBattleNpc bnpc
-                  && Svc.Targets.FocusTarget.Address != Svc.Targets.Target?.Address && bnpc.IsHostile())
+                if (focus is IBattleNpc bnpc
+                  && focus.Address != target?.Address && bnpc.IsHostile())
                 {
                     if (P.currentProfile.Radius3)
                     {
@@ -164,29 +179,31 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.EnablePlayerRing && IsConditionMatching(P.currentProfile.PlayerRingSettings.DisplayCondition))
         {
-            CircleXZ(Svc.ClientState.LocalPlayer.Position, Svc.ClientState.LocalPlayer.HitboxRadius, P.currentProfile.PlayerRingSettings);
+            CircleXZ(Svc.Objects.LocalPlayer.Position, Svc.Objects.LocalPlayer.HitboxRadius, P.currentProfile.PlayerRingSettings);
         }
 
         if (P.currentProfile.EnableFrontSegment && IsConditionMatching(P.currentProfile.FrontSegmentIndicator.DisplayCondition))
         {
-            DrawFrontalPosition(Svc.Targets.Target);
-            if (Svc.Targets.Target?.Address != Svc.Targets.FocusTarget?.Address)
+            FetchTargets();
+            DrawFrontalPosition(target);
+            if (target?.Address != focus?.Address)
             {
-                DrawFrontalPosition(Svc.Targets.FocusTarget);
+                DrawFrontalPosition(focus);
             }
         }
 
         if (P.currentProfile.EnableAnticipatedPie && IsConditionMatching(P.currentProfile.AnticipatedPieSettings.DisplayCondition)
-           && (!P.currentProfile.AnticipatedDisableTrueNorth || !Svc.ClientState.LocalPlayer.StatusList.Any(x => x.StatusId.EqualsAny(1250u))))
+           && (!P.currentProfile.AnticipatedDisableTrueNorth || !LocalPlayerHasStatus(1250u)))
         {
+            FetchTargets();
             {
-                if (Svc.Targets.Target is IBattleNpc bnpc && bnpc.IsHostile() && bnpc.HasPositional())
+                if (target is IBattleNpc bnpc && bnpc.IsHostile() && bnpc.HasPositional())
                 {
                     DrawAnticipatedPos(bnpc);
                 }
             }
             {
-                if (Svc.Targets.FocusTarget is IBattleNpc bnpc && Svc.Targets.FocusTarget.Address != Svc.Targets.Target?.Address && bnpc.IsHostile() && bnpc.HasPositional())
+                if (focus is IBattleNpc bnpc && focus.Address != target?.Address && bnpc.IsHostile() && bnpc.HasPositional())
                 {
                     DrawAnticipatedPos(bnpc);
                 }
@@ -195,7 +212,7 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.EnablePlayerDot && IsConditionMatching(P.currentProfile.PlayerDotSettings.DisplayCondition))
         {
-            if (Svc.GameGui.WorldToScreen(Svc.ClientState.LocalPlayer.Position, out var pos))
+            if (Svc.GameGui.WorldToScreen(Svc.Objects.LocalPlayer.Position, out var pos))
             {
                 ImGui.GetWindowDrawList().AddCircleFilled(
                 new Vector2(pos.X, pos.Y),
@@ -209,7 +226,7 @@ internal unsafe class Canvas : Window
         {
             foreach (var x in Svc.Party)
             {
-                if (x.GameObject is IPlayerCharacter pc && x.GameObject.Address != Svc.ClientState.LocalPlayer.Address)
+                if (x.GameObject is IPlayerCharacter pc && x.GameObject.Address != Svc.Objects.LocalPlayer.Address)
                 {
                     if (Svc.GameGui.WorldToScreen(x.GameObject.Position, out var pos))
                     {
@@ -225,10 +242,24 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.AllDot && IsConditionMatching(P.currentProfile.AllDotSettings.DisplayCondition))
         {
+            // 隊友圓點開著時，隊友交給隊友圖層畫：本幀先取一次隊員物件位址（不跨幀保存）。
+            Span<nint> partyAddrs = stackalloc nint[32];
+            var partyCount = 0;
+            if (P.currentProfile.PartyDot)
+            {
+                foreach (var m in Svc.Party)
+                {
+                    if (partyCount < partyAddrs.Length && m.GameObject is { } go)
+                    {
+                        partyAddrs[partyCount++] = go.Address;
+                    }
+                }
+            }
+
             foreach (var x in Svc.Objects)
             {
-                if (x is IPlayerCharacter pc && x.Address != Svc.ClientState.LocalPlayer.Address
-                  && (!P.currentProfile.PartyDot || !Svc.Party.Any(x => x.Address == x.GameObject?.Address)))
+                if (x is IPlayerCharacter pc && x.Address != Svc.Objects.LocalPlayer.Address
+                  && !partyAddrs[..partyCount].Contains(x.Address))
                 {
                     if (Svc.GameGui.WorldToScreen(x.Position, out var pos))
                     {
