@@ -44,45 +44,62 @@ namespace Avarice.Data
 			}
 
 			ReceiveActionEffectHook!.OriginalDisposeSafe(sourceId, sourceCharacter, pos, effectHeader, effectArray, effectTail);
-			var header = *(ActionEffectHandler.Header*)effectHeader;
 
-			if (ActionType is 13 or 2)
+			// 受管理例外穿出 detour＝整個遊戲結束，所以 Original 之後整段攔下；每幀路徑，只記第一次。
+			try
 			{
-				return;
-			}
+				var header = *(ActionEffectHandler.Header*)effectHeader;
 
-			if (header.ActionId != 7 &&
-				header.ActionId != 8 &&
-        sourceId == Svc.Objects.LocalPlayer.EntityId)
-			{
-				TimeLastActionUsed = DateTime.Now;
-				LastActionUseCount++;
-				if (header.ActionId != LastAction)
+				if (ActionType is 13 or 2)
 				{
-					LastActionUseCount = 1;
+					return;
 				}
 
-				LastAction = header.ActionId;
-
-				if (ActionSheet.TryGetValue(header.ActionId, out Lumina.Excel.Sheets.Action sheet))
+				if (header.ActionId != 7 &&
+					header.ActionId != 8 &&
+					Svc.Objects.LocalPlayer is { } lp &&
+					sourceId == lp.EntityId)
 				{
-					switch (sheet.ActionCategory.Value.RowId)
+					TimeLastActionUsed = DateTime.Now;
+					LastActionUseCount++;
+					if (header.ActionId != LastAction)
 					{
-						case 2: //Spell
-							LastSpell = header.ActionId;
-							break;
-						case 3: //Weaponskill
-							LastWeaponskill = header.ActionId;
-							break;
-						case 4: //Ability
-							LastAbility = header.ActionId;
-							break;
+						LastActionUseCount = 1;
 					}
-				}
 
-				CombatActions.Add(header.ActionId);
+					LastAction = header.ActionId;
+
+					if (ActionSheet.TryGetValue(header.ActionId, out Lumina.Excel.Sheets.Action sheet))
+					{
+						switch (sheet.ActionCategory.Value.RowId)
+						{
+							case 2: //Spell
+								LastSpell = header.ActionId;
+								break;
+							case 3: //Weaponskill
+								LastWeaponskill = header.ActionId;
+								break;
+							case 4: //Ability
+								LastAbility = header.ActionId;
+								break;
+						}
+					}
+
+					CombatActions.Add(header.ActionId);
+				}
+			}
+			catch (Exception e)
+			{
+				if (!receiveActionEffectErrorLogged)
+				{
+					receiveActionEffectErrorLogged = true;
+					PluginLog.Error($"[ActionWatching] 處理技能效果時發生錯誤，之後同類錯誤不再記錄：{e}");
+				}
 			}
 		}
+
+		// 只在遊戲主執行緒（detour 內）讀寫。
+		private static bool receiveActionEffectErrorLogged;
 
 		private delegate void SendActionDelegate(ulong targetObjectId, byte actionType, uint actionId, ushort sequence, long a5, long a6, long a7, long a8, long a9);
 		private static readonly Hook<SendActionDelegate> SendActionHook;
