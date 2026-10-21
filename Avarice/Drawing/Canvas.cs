@@ -222,7 +222,8 @@ internal unsafe class Canvas : Window
             }
         }
 
-        if (P.currentProfile.PartyDot && IsConditionMatching(P.currentProfile.PartyDotSettings.DisplayCondition))
+        var partyDotDrawn = P.currentProfile.PartyDot && IsConditionMatching(P.currentProfile.PartyDotSettings.DisplayCondition);
+        if (partyDotDrawn)
         {
             foreach (var x in Svc.Party)
             {
@@ -242,10 +243,10 @@ internal unsafe class Canvas : Window
 
         if (P.currentProfile.AllDot && IsConditionMatching(P.currentProfile.AllDotSettings.DisplayCondition))
         {
-            // 隊友圓點開著時，隊友交給隊友圖層畫：本幀先取一次隊員物件位址（不跨幀保存）。
+            // 隊友圖層這一幀真的有畫時，隊友交給它畫：本幀先取一次隊員物件位址（不跨幀保存）。
             Span<nint> partyAddrs = stackalloc nint[32];
             var partyCount = 0;
-            if (P.currentProfile.PartyDot)
+            if (partyDotDrawn)
             {
                 foreach (var m in Svc.Party)
                 {
