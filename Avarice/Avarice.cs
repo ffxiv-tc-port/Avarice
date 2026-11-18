@@ -40,14 +40,19 @@ public unsafe class Avarice : IDalamudPlugin
     internal uint[] PositionalStatus;
     internal RotationSolverWatcher RotationSolverWatcher;
 
+    // ECommonsMain.Dispose 不收 TickScheduler：建構後、第一幀前就卸載時要自己收，否則 Load 會在卸載後照跑（建 hook）。
+    private TickScheduler loadScheduler;
+    private volatile bool disposed;
+
     public Avarice(IDalamudPluginInterface pi)
     {
         P = this;
         ECommonsMain.Init(pi, this, Module.DalamudReflector, Module.ObjectFunctions);
         ECommons.LanguageHelpers.Localization.Init("ChineseTraditional");
         PunishLibMain.Init(pi, Svc.PluginInterface.InternalName, new AboutPlugin() { IconPath = LocalIconPath(pi) }, PunishOption.DefaultKoFi);
-        _ = new TickScheduler(delegate
+        loadScheduler = new TickScheduler(delegate
         {
+            if (disposed) return;
             PositionalStatus = EzSharedData.GetOrCreate<uint[]>("Avarice.PositionalStatus", [0, 0]);
             config = Svc.PluginInterface.GetPluginConfig() as Config ?? new();
             if (config.Profiles.Count == 0)
@@ -260,8 +265,11 @@ public unsafe class Avarice : IDalamudPlugin
 
     public void Dispose()
     {
+        disposed = true;
+        loadScheduler?.Dispose();
         Safe(() => Svc.PluginInterface.SavePluginConfig(config));
-        Svc.PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
+        // Load 沒跑完時下面幾個欄位可能是 null；中途擲例外會跳過 PunishLib／ECommons 的收尾。
+        if (windowSystem != null) Svc.PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         _ = Svc.Commands.RemoveHandler("/avarice");
         Svc.Condition.ConditionChange -= OnConditionChange;
         Svc.Framework.Update -= Tick;
@@ -272,9 +280,9 @@ public unsafe class Avarice : IDalamudPlugin
         // PositionalManager 在 TickScheduler 裡才建立,Dispose 可能早於它 → 一律 ?. 並包 Safe。
         // 它訂閱了 Svc.ClientState.Login(方位表校準診斷的節流重置),不解訂閱會留下懸空處理常式。
         Safe(() => PositionalManager?.Dispose());
-        memory.Dispose();
+        memory?.Dispose();
         ActionWatching.Dispose();
-        ComboCache.ComboCacheInstance.Dispose();
+        ComboCache.ComboCacheInstance?.Dispose();
         PunishLibMain.Dispose();
         ECommonsMain.Dispose();
         P = null;
