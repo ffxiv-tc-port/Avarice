@@ -105,9 +105,10 @@ namespace Avarice.Data
 		private static readonly Hook<SendActionDelegate> SendActionHook;
 		private static unsafe void SendActionDetour(ulong targetObjectId, byte actionType, uint actionId, ushort sequence, long a5, long a6, long a7, long a8, long a9)
 		{
+			// 原函式在 try 外恰好呼叫一次：之後的記錄出錯也不會讓同一招再送一次。
+			SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 			try
 			{
-				SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 				TimeLastActionUsed = DateTime.Now;
 				ActionType = actionType;
 
@@ -116,7 +117,6 @@ namespace Avarice.Data
 			catch (Exception ex)
 			{
 				Svc.Log.Error(ex, "SendActionDetour");
-				SendActionHook!.OriginalDisposeSafe(targetObjectId, actionType, actionId, sequence, a5, a6, a7, a8, a9);
 			}
 		}
 
