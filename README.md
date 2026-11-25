@@ -36,8 +36,14 @@
 - 多處降低記憶體用量。
 - 介面繁體中文化（職業名、技能名用台服官方用語）。
 
+## 安裝
+
+`/xlsettings` 開「Dalamud 設定」→「試驗性功能」→「第三方插件倉庫」，加入 `https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/repo.json` 並啟用、儲存，再到「插件管理員」（`/xlplugins`）安裝；同一個插件只裝這裡的版本，不要同時裝上游版。
+
 ## 需要搭配的插件
 
 - 選用：VFXEditor（命中回饋特效）、Splatoon（危險區域變色）、Rotation Solver Reborn（預期判定）
 
 原作者：[PunishXIV/Avarice](https://github.com/PunishXIV/Avarice)
+
+授權：BSD-3-Clause（見 LICENCE.md）
